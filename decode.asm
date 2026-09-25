@@ -62,6 +62,26 @@ _decode_header:
         ; the struct, and driver.c does the rest.
         ;
 
+        ; pusha runs after enter has fixed ebp, so the 32 bytes it pushes
+        ; sit below ebp and the argument offsets do not move.
+        mov     esi, [ebp+8]            ; esi = hdr
+        mov     edi, [ebp+12]           ; edi = out
+
+        ; Byte 0 holds version (high nibble) and IHL (low nibble). movzx
+        ; zeroes bits 31-8, so each 32-bit store below holds only the field.
+        movzx   eax, byte [esi]
+        mov     edx, eax                ; keep a copy; the shift destroys the low nibble
+
+        ; Version is the high nibble. A 4-bit right shift moves it down to
+        ; bits 3-0. The bits that shift in are zero, so no mask is needed.
+        shr     eax, 4
+        mov     [edi+0], eax            ; out->version
+
+        ; IHL is the low nibble. 0x0F keeps bits 3-0 and clears the version
+        ; bits. Store the count of 32-bit words. driver.c prints the *4.
+        and     edx, 0x0F
+        mov     [edi+4], edx            ; out->ihl
+
         popa
         mov     eax, 0
         leave
