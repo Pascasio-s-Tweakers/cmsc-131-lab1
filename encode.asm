@@ -65,6 +65,16 @@ _encode_header:
         ; so a pointer kept in one of those survives the call. eax, ecx, and
         ; edx do not.
         ;
+        mov     esi, [ebp+8]            ; esi = in  (the struct, we read it)
+        mov     edi, [ebp+12]           ; edi = hdr (the 20 bytes, we write them)
+
+        ; Byte 0: version in the top 4 bits, IHL in the bottom 4.
+        mov     eax, [esi+0]            ; version
+        shl     eax, 4                  ; move it up to bits 7-4
+        mov     edx, [esi+4]            ; ihl
+        and     edx, 0xF                ; keep 4 bits so it cant spill into version
+        or      eax, edx
+        mov     [edi+0], al             ; store one byte
 
         popa
         mov     eax, 0
