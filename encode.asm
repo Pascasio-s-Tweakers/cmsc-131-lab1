@@ -65,16 +65,30 @@ _encode_header:
         ; so a pointer kept in one of those survives the call. eax, ecx, and
         ; edx do not.
         ;
-        mov     esi, [ebp+8]            ; esi = in  (the struct, we read it)
-        mov     edi, [ebp+12]           ; edi = hdr (the 20 bytes, we write them)
+        mov     esi, [ebp+8]                 ; esi = in  (the struct, we read it)
+        mov     edi, [ebp+12]                ; edi = hdr (the 20 bytes, we write them)
 
         ; Byte 0: version in the top 4 bits, IHL in the bottom 4.
-        mov     eax, [esi+0]            ; version
-        shl     eax, 4                  ; move it up to bits 7-4
-        mov     edx, [esi+4]            ; ihl
-        and     edx, 0xF                ; keep 4 bits so it cant spill into version
+        mov     eax, [esi+0]                 ; version
+        shl     eax, 4                       ; move it up to bits 7-4
+        mov     edx, [esi+4]                 ; ihl
+        and     edx, 0xF                     ; keep 4 bits so it cant spill into version
         or      eax, edx
-        mov     [edi+0], al             ; store one byte
+        mov     byte [edi+0], al             ; store one byte
+
+        ; Byte 1: DSCP in the top 6 bits, ECN in the bottom 2.
+        mov     eax, [esi+8]                 ; dscp
+        shl     eax, 2                       ; move it up to bits 7-2
+        mov     edx, [esi+12]                ; ecn
+        and     edx, 0b11                    ; keep 2 bits so it cant spill into dscp
+        or      eax, edx
+        mov     byte [edi+1], al             ; store one byte
+
+        ; Bytes 2-3: total_length, big-endian.
+        mov     eax, [esi+16]                ; total_length
+        mov     byte [edi+2], ah             ; high byte first (big-endian)
+        mov     byte [edi+3], al             ; then the low byte
+
 
         popa
         mov     eax, 0
