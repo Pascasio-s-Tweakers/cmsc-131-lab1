@@ -40,29 +40,51 @@ segment .text
         global  _ip_checksum
 _ip_checksum:
         enter   0,0
-        pusha
+        push    ebx
+        push    esi
 
-        ;
-        ; TODO: the checksum loop.
-        ;
-        ; The manual's recipe:
-        ;
-        ;   1. Treat the header as 16-bit big-endian words. Load each byte
-        ;      pair and recombine. Never load the pair as a single 16-bit
-        ;      value, which gives you the bytes reversed.
-        ;   2. Add each word to a 32-bit accumulator. Keep the carries. The
-        ;      fold below returns them to the sum.
-        ;   3. While the accumulator exceeds 16 bits, add its high half to
-        ;      its low half. This is the end-around carry. A large sum can
-        ;      need the fold twice.
-        ;   4. NOT the low 16 bits. That is the checksum.
-        ;
-        ; len is always even, since the driver calls this with 20. A loop
-        ; that consumes two bytes per iteration and stops on ecx == 0 is
-        ; enough. Leave the answer in ax when you return.
-        ;
+        mov     esi, [ebp+8]    ; header_pointer
+        mov     ecx, [ebp+12]   ; length         
+        mov     eax, 0          ; eax will serve as total
 
-        popa
-        mov     eax, 0
+loop_top:
+        cmp     ecx, 0
+        je      loop_end
+
+        mov     ebx, [esi]
+        and     ebx, 0xFF          ; load header_pointer and then mask so its just the first byte
+
+        mov     edx, [esi]
+        and     edx, 0xFF00       ; load header_pointer and then mask so its just the second byte, shift it 8 so its at the right bit adresses
+        shr     edx, 8
+
+        shl     ebx, 8
+        or      ebx, edx        ; combine ebx and edx
+
+        add      eax, ebx        ; add the ebx to total
+
+        add     esi, 2
+        sub     ecx, 2             
+
+        jmp     loop_top
+loop_end:       ; if length is 0, exit loop        
+
+        ; fold carries
+
+fold_loop_top:
+        mov     edx, eax
+        shr     edx, 16
+        cmp     edx, 0
+        jle     fold_loop_end
+        and     eax, 0xFFFF
+        add     eax, edx
+        jmp     fold_loop_top 
+fold_loop_end:
+
+        not     eax              ; one's complement
+        and     eax, 0xFFFF  
+        
+        pop     esi
+        pop     ebx
         leave
         ret
