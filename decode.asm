@@ -115,6 +115,45 @@ _decode_header:
         mov     [edi+24], eax           ; out->flags
         mov     [edi+28], edx           ; out->fragment_offset
 
+        ; Byte 8-11:
+        movzx   eax, byte [esi+8]
+        mov     [edi+32], eax
+        movzx   eax, byte [esi+9]
+        mov     [edi+36], eax
+        movzx   eax, byte [esi+10]      ;checksum
+        shl     eax, 8
+        movzx   edx, byte [esi+11]
+        or      eax, edx
+        mov     [edi+40], eax
+
+        ; Byte 12-15 Source Bytes:
+        mov     al, byte [esi+12]
+        mov     [edi+44], eax
+        mov     al, byte [esi+13]
+        mov     [edi+45], eax
+        mov     al, byte [esi+14]
+        mov     [edi+46], eax
+        mov     al, byte [esi+15]
+        mov     [edi+47], eax
+        
+        
+
+        ; Byte 16-19 Destination Bytes:
+        mov     al, byte [esi+16]
+        mov     [edi+48], eax
+        mov     al, byte [esi+17]
+        mov     [edi+49], eax
+        mov     al, byte [esi+18]
+        mov     [edi+50], eax
+        mov     al, byte [esi+19]
+        mov     [edi+51], eax
+
+
+        
+
+        
+
+
         popa
         mov     eax, 0
         leave
