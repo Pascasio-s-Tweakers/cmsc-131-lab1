@@ -82,6 +82,39 @@ _decode_header:
         and     edx, 0x0F
         mov     [edi+4], edx            ; out->ihl
 
+        ; Byte 1: DSCP uses the upper six bits; ECN uses the lower two.
+        movzx   eax, byte [esi+1]
+        mov     edx, eax
+        shr     eax, 2
+        and     edx, 0x03
+        mov     [edi+8], eax            ; out->dscp
+        mov     [edi+12], edx           ; out->ecn
+
+        ; Bytes 2-3: combine the high and low bytes in network order.
+        movzx   eax, byte [esi+2]
+        shl     eax, 8
+        movzx   edx, byte [esi+3]
+        or      eax, edx
+        mov     [edi+16], eax           ; out->total_length
+
+        ; Bytes 4-5: identification has the same big-endian layout.
+        movzx   eax, byte [esi+4]
+        shl     eax, 8
+        movzx   edx, byte [esi+5]
+        or      eax, edx
+        mov     [edi+20], eax           ; out->identification
+
+        ; Bytes 6-7: split the three flag bits from the 13-bit offset.
+        movzx   eax, byte [esi+6]
+        shl     eax, 8
+        movzx   edx, byte [esi+7]
+        or      eax, edx
+        mov     edx, eax
+        shr     eax, 13
+        and     edx, 0x1FFF
+        mov     [edi+24], eax           ; out->flags
+        mov     [edi+28], edx           ; out->fragment_offset
+
         popa
         mov     eax, 0
         leave
