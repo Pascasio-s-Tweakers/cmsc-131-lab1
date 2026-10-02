@@ -128,25 +128,25 @@ _decode_header:
 
         ; Byte 12-15 Source Bytes:
         mov     al, byte [esi+12]
-        mov     [edi+44], eax
+        mov     [edi+44], al
         mov     al, byte [esi+13]
-        mov     [edi+45], eax
+        mov     [edi+45], al
         mov     al, byte [esi+14]
-        mov     [edi+46], eax
+        mov     [edi+46], al
         mov     al, byte [esi+15]
-        mov     [edi+47], eax
+        mov     [edi+47], al
         
         
 
         ; Byte 16-19 Destination Bytes:
         mov     al, byte [esi+16]
-        mov     [edi+48], eax
+        mov     [edi+48], al
         mov     al, byte [esi+17]
-        mov     [edi+49], eax
+        mov     [edi+49], al
         mov     al, byte [esi+18]
-        mov     [edi+50], eax
+        mov     [edi+50], al
         mov     al, byte [esi+19]
-        mov     [edi+51], eax
+        mov     [edi+51], al
 
 
         
