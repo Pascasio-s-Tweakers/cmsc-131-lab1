@@ -89,6 +89,59 @@ _encode_header:
         mov     byte [edi+2], ah             ; high byte first (big-endian)
         mov     byte [edi+3], al             ; then the low byte
 
+        ; Bytes 4-5: identification, big-endian.
+        mov     eax, [esi+20]                ; identification
+        mov     byte [edi+4], ah             ; high byte first (big-endian)
+        mov     byte [edi+5], al             ; then the low byte
+
+        ; Bytes 6-7: flags in the top 3 bits, fragment offset in the bottom 13.
+        ; Build the 16-bit word first, because the offset straddles both bytes.
+        mov     eax, [esi+24]                ; flags
+        shl     eax, 13                      ; 16 - 3 = 13, move it up to bits 15-13
+        mov     edx, [esi+28]                ; fragment_offset
+        and     edx, 0x1FFF                  ; keep 13 bits so it cant spill into flags
+        or      eax, edx
+        mov     byte [edi+6], ah             ; flags and the top 5 offset bits
+        mov     byte [edi+7], al             ; the bottom 8 offset bits
+
+        ; Bytes 8 and 9: ttl and protocol fill a whole byte each, so no shift.
+        mov     eax, [esi+32]                ; ttl
+        mov     byte [edi+8], al             ; store one byte
+        mov     eax, [esi+36]                ; protocol
+        mov     byte [edi+9], al             ; store one byte
+
+        ; Bytes 12-15: source address. The struct holds the octets in
+        ; network order already, so copy them one byte at a time.
+        mov     al, byte [esi+44]            ; src[0]
+        mov     byte [edi+12], al
+        mov     al, byte [esi+45]            ; src[1]
+        mov     byte [edi+13], al
+        mov     al, byte [esi+46]            ; src[2]
+        mov     byte [edi+14], al
+        mov     al, byte [esi+47]            ; src[3]
+        mov     byte [edi+15], al
+
+        ; Bytes 16-19: destination address, copied the same way.
+        mov     al, byte [esi+48]            ; dst[0]
+        mov     byte [edi+16], al
+        mov     al, byte [esi+49]            ; dst[1]
+        mov     byte [edi+17], al
+        mov     al, byte [esi+50]            ; dst[2]
+        mov     byte [edi+18], al
+        mov     al, byte [esi+51]            ; dst[3]
+        mov     byte [edi+19], al
+
+        ; Bytes 10-11: checksum. This comes last, because ip_checksum sums
+        ; all 20 bytes. The field must read as zero while it is computed.
+        mov     word [edi+10], 0             ; clear both checksum bytes
+
+        push    dword 20                     ; 2nd argument: header length in bytes
+        push    edi                          ; 1st argument: hdr
+        call    _ip_checksum                 ; result comes back in ax
+        add     esp, 8                       ; remove the 2 arguments (4 bytes each)
+
+        mov     byte [edi+10], ah            ; high byte first (big-endian)
+        mov     byte [edi+11], al            ; then the low byte
 
         popa
         mov     eax, 0
