@@ -14,3 +14,6 @@ sample03 valid
 sample04 valid
 sample05 valid
 bad01 invalid
+edge_zero_checksum valid
+edge_mixed_fields valid
+edge_bad_checksum invalid
