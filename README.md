@@ -40,13 +40,12 @@ folded twice. It checks that all three routines keep `ebx`, `esi`, `edi`,
 and `ebp`, and return with `esp` where the call left it. A program can pass
 the first pass and fail the second. That failure is the usual encoder bug.
 
-## Reading a First Run
+## Reading Check Results
 
-The assembly files ship as stubs that assemble and link as-is, so the build
-works before you write any code. Right now they do nothing useful, which
-makes every check fail: `7 of 7 checks differ`. That red run is the correct
-starting state for a starter. The badge stays red until you implement the
-routines.
+The assembly routines now decode, encode, and checksum the 20-byte header.
+The decode pass identifies fields that differ from expected output. The
+contract pass reports the first byte that fails a valid-header round trip,
+checks a checksum that needs two carry folds, and checks register preservation.
 
 ## Adding a Header
 
@@ -96,13 +95,25 @@ Keep each part short. Update it when the plan changes.
 
 ### Problem analysis
 
-What the tool must read, what it must write, and which field is the hard
-one. State the header layout in your own words.
+The tool reads a 20-byte IPv4 base header and prints its fields and checksum
+validity, or builds a 20-byte header from command-line fields. Byte 0 holds
+version and IHL, byte 1 holds DSCP and ECN, bytes 2-5 hold length and ID,
+bytes 6-7 share flags and a 13-bit fragment offset, bytes 8-11 hold TTL,
+protocol, and checksum, and bytes 12-19 hold the two addresses. The shared
+flags/offset word and big-endian 16-bit fields need the most care.
 
 ### Solution architecture
 
-How the three routines split the work. Which registers each routine uses,
-and how the struct offsets in `driver.c` map to the fields.
+`decode_header` reads header bytes through `esi`, combines multi-byte values
+in `eax` and `edx`, and stores fields through `edi` at the offsets in
+`driver.c`: version/IHL at +0/+4, DSCP/ECN at +8/+12, length/ID at +16/+20,
+flags/offset at +24/+28, TTL/protocol/checksum at +32/+36/+40, and address
+octets at +44..+51. `encode_header` reads that struct through `esi`, writes
+the header through `edi`, uses `eax` and `edx` to pack fields, zeroes bytes
+10-11, and calls `ip_checksum` before storing the checksum. `ip_checksum`
+walks the header through `esi`, counts bytes in `ecx`, builds each word in
+`ebx` and `edx`, and sums and folds it in `eax`.
+Each routine preserves the registers required by the C calling convention.
 
 ### Timeline
 
@@ -111,10 +122,10 @@ who owns it.
 
 | Week | Goal | Owner |
 |---|---|---|
-| 1 | | |
-| 2 | | |
-| 3 | | |
-| 4 | Defense | |
+| 1 | Header layout and decode path | Eusef Karl Blancada and Yuan Birondo |
+| 2 | Encode path and round-trip checks | JP Salomeo |
+| 3 | Checksum, edge fixtures, and integration checks | Renz Banas |
+| 4 | Defense and final review | All members |
 
 ## Subsystem Ownership
 
@@ -124,9 +135,9 @@ share one. The commit history must agree with this table.
 
 | Subsystem | Owner |
 |---|---|
-| Decode path (`decode.asm`) | |
-| Encode path (`encode.asm`) | |
-| Checksum and tests (`checksum.asm`, `tests/`) | |
+| Decode path (`decode.asm`) | Eusef Karl Blancada and Yuan Birondo |
+| Encode path (`encode.asm`) | JP Salomeo |
+| Checksum and tests (`checksum.asm`, `tests/`) | Renz Banas |
 
 ## Quirks and Issues
 
@@ -137,8 +148,18 @@ did about it.
 
 ### Known issues
 
-- 
+- `ip_checksum` reads a 32-bit value for each two-byte word. On the final
+  word of a 20-byte header, that reads two bytes past the buffer; masking
+  the unused bytes still gives the expected test result but does not make the
+  read safe. The issue is documented; replacing those loads with two byte
+  loads remains to be done.
 
 ### Quirks
 
-- 
+- The tool always reads and writes exactly 20 header bytes, even when the
+  total-length field is larger. That field describes the whole IPv4 packet;
+  this lab handles only its base header. We keep the scope explicit in the
+  driver and test fixtures.
+- A valid header can store a checksum of `0x0000`. The checksum routine sums
+  the header including that field, so validity depends on a zero result,
+  not on the stored field being nonzero. `edge_zero_checksum` tests this case.
